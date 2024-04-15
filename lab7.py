@@ -3,38 +3,35 @@ from sklearn.neighbors import KDTree
 from sklearn.datasets import make_classification
 
 
+def euclidean_distance(point, data):
+    return np.sqrt(np.sum(point - data) ** 2)
+
+
 class knnAlgorithm:
     def __init__(self, n_neighbors=1, use_KDTree=False):
         self.n_neighbors = n_neighbors
         self.use_KDTree = use_KDTree
-        self.X_Train = None
-        self.Y_Train = None
+        self.x_train = None
+        self.y_train = None
         if self.use_KDTree:
             self.kdTree = KDTree(X)
 
     def fit(self, X, y):
-        self.X_train = X
+        self.x_train = X
         self.y_train = y
 
     def predict(self, X):
-        if self.use_KDTree:
-            _, indices = self.kdTree.query(X, k=self.n_neighbors)
-        else:
-            distances = np.sqrt(np.sum((X[:, np.newaxis] - self.X_train) ** 2, axis=2))
-            indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
-
-        if len(self.y_train.shape) == 1:
-            predictions = np.array([np.argmax(np.bincount(self.y_train[neighbors])) for neighbors in indices])
-        else:
-            predictions = np.array([np.mean(self.y_train[neighbors], axis=0) for neighbors in indices])
-        return predictions
+        neighbors = []
+        for x in X:
+            distances = euclidean_distance(x, self.x_train)
+            y_sorted = [y for _, y in sorted(zip(distances, self.y_train))]
+            neighbors.append(y_sorted[:self.n_neighbors])
+        return neighbors
 
     def score(self, X, y):
-        predictions = self.predict(X)
-        if len(y.shape) == 1:
-            return np.mean((predictions - y) ** 2)
-        else:
-            return np.mean(predictions == y)
+        y_pred = self.predict(X)
+        accuracy = sum(y == y_pred) / len(y)
+        return accuracy
 
 
 X, y = make_classification(
@@ -45,3 +42,7 @@ X, y = make_classification(
     n_repeated=0,
     random_state=3
 )
+
+knn = knnAlgorithm(n_neighbors=3,use_KDTree=True)
+knn.fit(X, y)
+print("KNN Accuracy: ", knn.score(X, y))
