@@ -1,50 +1,128 @@
-# Step 1: Import necessary libraries
-import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import LabelEncoder
-from sklearn.preprocessing import MinMaxScaler
+import pandas as pd
 
-# Step 2: Load the data
-data = pd.read_csv('autos.csv')
-df = data[['horsepower', 'price']]
-# Step 3: Preprocess the data
-print("data: ", df)
-# Convert categorical data to numerical data
-le = LabelEncoder()
-# for i in df.columns:
-#     if df[i].dtype == 'object':
-#         df[i] = le.fit_transform(df[i].astype(str))
+def diste(X, C):
+    """
+    Calculates the Euclidean distance between two sets of points X and C.
 
-# Handle missing values
-df = df.fillna(0)
+    Parameters:
+    X : numpy.ndarray
+        Data matrix of shape (n_samples, n_features).
+    C : numpy.ndarray
+        Matrix of centroids of shape (n_centroids, n_features).
 
-# Normalize the data
-scaler = MinMaxScaler()
-# df = pd.DataFrame(scaler.fit_transform(df), columns=df.columns)
+    Returns:
+    dist : numpy.ndarray
+        Euclidean distance matrix of shape (n_samples, n_centroids).
+    """
+    dist = np.linalg.norm(X[:, np.newaxis, :] - C, axis=2)
+    return dist
 
-# Step 4: Choose the number of clusters (K) for K-means algorithm
-# In this example, let's assume we want 3 clusters
+
+def distm(X, C, V):
+    """
+    Calculates the Mahalanobis distance between two sets of points X and C.
+
+    Parameters:
+    X : numpy.ndarray
+        Data matrix of shape (n_samples, n_features).
+    C : numpy.ndarray
+        Matrix of centroids of shape (n_centroids, n_features).
+    V : numpy.ndarray
+        Covariance matrix of shape (n_features, n_features).
+
+    Returns:
+    dist : numpy.ndarray
+        Mahalanobis distance matrix of shape (n_samples, n_centroids).
+    """
+    diff = X[:, np.newaxis, :] - C
+    dist = np.sqrt(np.einsum('ijk,kl,ijl->ij', diff, np.linalg.inv(V), diff))
+    return dist
+
+
+def ksrodki(X, k, dist_func=diste, max_iter=100, tol=1e-4):
+    """
+    K-means clustering algorithm.
+
+    Parameters:
+    X : numpy.ndarray
+        Data matrix of shape (n_samples, n_features).
+    k : int
+        Number of clusters.
+    dist_func : function, optional
+        Function to calculate distance. Default is Euclidean distance.
+    max_iter : int, optional
+        Maximum number of iterations. Default is 100.
+    tol : float, optional
+        Tolerance to declare convergence. Default is 1e-4.
+
+    Returns:
+    centroids : numpy.ndarray
+        Centroids of shape (k, n_features).
+    labels : numpy.ndarray
+        Labels of each sample.
+    """
+    n_samples, n_features = X.shape
+    centroids = X[np.random.choice(n_samples, k, replace=False)]
+
+    for _ in range(max_iter):
+        dist_matrix = dist_func(X, centroids)
+        labels = np.argmin(dist_matrix, axis=1)
+        new_centroids = np.array([X[labels == i].mean(axis=0) for i in range(k)])
+
+        if np.allclose(centroids, new_centroids, atol=tol):
+            break
+
+        centroids = new_centroids
+
+    return centroids, labels
+
+
+def clustering_quality(X, centroids, labels):
+    """
+    Computes the clustering quality measure WCSS for K-means clustering.
+
+    Parameters:
+    X : numpy.ndarray
+        Data matrix of shape (n_samples, n_features).
+    centroids : numpy.ndarray
+        Centroids of shape (k, n_features).
+    labels : numpy.ndarray
+        Labels of each sample.
+
+    Returns:
+    quality : float
+        Clustering quality measure.
+    """
+    k = centroids.shape[0]
+    quality = 0
+
+    for i in range(k):
+        dist_within = np.sum(np.linalg.norm(X[labels == i] - centroids[i], axis=1) ** 2)
+        quality += dist_within
+
+    quality /= X.shape[0]
+    return quality
+
+
+# Example data (replace with your dataset)
+# np.random.seed(42)
+# X = np.random.rand(100, 2)
+df = pd.read_csv('autos.csv')
+df = df[['horsepower', 'price']].dropna()
+X = df.to_numpy()
+# Example of usage
 k = 3
+centroids, labels = ksrodki(X, k)
+quality = clustering_quality(X, centroids, labels)
+print("Clustering quality:", quality)
 
-# Step 5: Apply the K-means algorithm
-print(df)
-kmeans = KMeans(n_clusters=k)
-# kmeans.fit(df)
-y_pred = kmeans.fit_predict(df)
-# Step 6: Evaluate the model
-# Print the cluster centers
-print(kmeans.cluster_centers_)
-
-df['Cluster'] = y_pred
-# print(df.to_string())
-data1 = df[df['Cluster'] == 0]
-data2 = df[df['Cluster'] == 1]
-data3 = df[df['Cluster'] == 2]
-plt.scatter(data1[['horsepower']], data1[['price']], color='red')
-plt.scatter(data2[['horsepower']], data2[['price']], color='orange')
-plt.scatter(data3[['horsepower']], data3[['price']], color='green')
-plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1],c='pink',edgecolors='black',marker='*',s = 100)
-
+# Plotting
+plt.scatter(X[:, 0], X[:, 1], c=labels, cmap='viridis')
+plt.scatter(centroids[:, 0], centroids[:, 1], marker='X', color='red', s=200, label='Centroids')
+plt.legend()
+plt.title('K-means Clustering')
+plt.xlabel('Feature 1')
+plt.ylabel('Feature 2')
 plt.show()
