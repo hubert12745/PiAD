@@ -31,8 +31,8 @@ def ksrodki(X, k, dist_func=diste, max_iter=100, tol=1e-4):
 
     for _ in range(max_iter):
         dist_matrix = dist_func(X, centroids) # Oblicza macierz odległości
-        labels = np.argmin(dist_matrix, axis=1) # Przypisuje etykiety najbliższego centroida
-        # Oblicza nowe centroidy jako średnie punktów przypisanych do każdego centroida
+        labels = np.argmin(dist_matrix, axis=1) # Przypisuje etykiety najbliższego centroidu
+        # Oblicza nowe centroidy jako średnie punktów przypisanych do każdego centroidu
         new_centroids = np.array([X[labels == i].mean(axis=0) for i in range(k)])
 
         if np.allclose(centroids, new_centroids, atol=tol): # Sprawdza konwergencję

@@ -46,3 +46,15 @@ newSize = frame_size*frames
 
 energy = np.array(energy) / max(energy)
 zero_crossings = np.array(zero_crossings) / max(zero_crossings)
+
+time = np.linspace(0, newSize, num=len(energy))
+plt.figure(figsize=(15, 6))
+
+plt.plot(time/fs*1000, s[:newSize], label='Audio signal')
+plt.plot(time/fs*1000, energy, label='Energy')
+plt.plot(time/fs*1000, zero_crossings, label='Zero crossings')
+plt.xlabel('Time [ms]')
+plt.ylabel('Magnitude')
+plt.title('Energy and Zero Crossings')
+plt.legend()
+plt.show()
