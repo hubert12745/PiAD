@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.fftpack
 import librosa
-
+from scipy.signal import find_peaks
 file_path = 'nagranie.wav'
 s, fs = sf.read(file_path, dtype='float32')
 duration = len(s) / fs
@@ -44,7 +44,12 @@ for i in range(num_frames):
 energies = np.array(energies) / max(energies)
 zero_crossings = np.array(zero_crossings) / max(zero_crossings)
 
-
+#maksima energii moga wskazywać na przykład na samogłoski, minima na przerwy w mowie lub szumy
+#maksima przejść przez zero mogą wskazywać na głoski bezdźwięczne, minima na dźwięczne
+#wysoka energia i niska liczba przejść przez zero mogą wskazywać na samogłoski
+#niska energia i wysoka liczba przejść przez zero mogą wskazywać na głoski bezdźwięczne
+#niska energia i niska liczba przejść przez zero mogą wskazywać na przerwy w mowie lub szumy
+#wysoka energia i wysoka liczba przejść przez zero mogą wskazywać na intensywne dźwięki i hałasy
 
 # Create time axis for the frames
 frame_times = np.linspace(0, duration, num_frames)
@@ -73,7 +78,6 @@ plt.show()
 #88200 - a - harmoniczna
 vowel_segment = s[88200:88200+2048]
 
-# Apply Hamming window
 window = np.hamming(len(vowel_segment))
 windowed_signal = vowel_segment * window
 
@@ -84,44 +88,52 @@ log_spectrum = np.log(np.abs(yf))
 # Frequency axis
 freqs = np.fft.fftfreq(len(windowed_signal), 1 / fs)
 
-# Visualization
-plt.figure(figsize=(10, 6))
-plt.plot(freqs[:len(freqs)//2], log_spectrum[:len(log_spectrum)//2])
-plt.xlabel('Frequency [Hz]')
-plt.ylabel('Log amplitude')
-plt.title('Logarithmic Amplitude Spectrum')
-plt.xlim(0, 10000)
-plt.show()
+half_len = len(freqs) // 2
+freqs = freqs[:half_len]
+log_spectrum = log_spectrum[:half_len]
 
 # Identify fundamental frequency (F0)
-f0 = freqs[np.argmax(np.abs(yf[:len(yf)//2]))]
+f0 = freqs[np.argmax(np.abs(yf[:half_len]))]
 print(f"Fundamental frequency (F0): {f0:.2f} Hz")
 
-p = 20  # order of LPC
+# Linear Predictive Coding (LPC)
+p = 20  # Order of LPC
 lpc_coeffs = librosa.lpc(vowel_segment, order=p)
 
+# Compute smoothed spectrum
 a = np.zeros(len(vowel_segment))
 a[:21] = lpc_coeffs
-
-# Compute smoothed spectrum
 lpc_spectrum = np.log(np.abs(scipy.fftpack.fft(a)))
 lpc_spectrum = lpc_spectrum * -1
 
-# Frequency axis
+# Adjust the LPC spectrum for better visualization
+lpc_spectrum = lpc_spectrum[:half_len] - 5
+
+# Find local maximas in the LPC spectrum
+peaks, _ = find_peaks(lpc_spectrum, height=None, distance=50)
+print("Maximas indices:", peaks)
+
+# Extract formant frequencies
+formant_frequencies = freqs[peaks]
 
 # Visualization
 plt.figure(figsize=(14, 8))
+plt.plot(freqs, log_spectrum, label='Original Spectrum')
+plt.plot(freqs, lpc_spectrum, label='LPC Spectrum', color='red')
 
-
-plt.plot(freqs[:len(freqs)//2], log_spectrum[:len(log_spectrum)//2], label='Original Spectrum')
-plt.plot(freqs[:len(freqs)//2], lpc_spectrum[:len(lpc_spectrum)//2], label='LPC Spectrum', color='red')
+# Highlight local maximas (formants) on the plot
+for i, idx in enumerate(peaks):
+    plt.plot(freqs[idx], lpc_spectrum[idx], 'ko')  # Mark local maximas with black circles
+    plt.text(freqs[idx], lpc_spectrum[idx], f'F{i+1}', fontsize=12, color='black', ha='right')
 
 plt.xlabel('Frequency [Hz]')
 plt.ylabel('Log amplitude')
 plt.title('LPC Smoothed Spectrum')
 plt.legend()
+plt.xlim(0, 10000)
+plt.ylim(-10, 3)  # Adjusting y-axis limits for better visualization
+plt.grid(True)
 plt.show()
 
-# Formant extraction (F1 and F2)
-formants = freqs[np.argsort(np.abs(a))[:2]]
-print(f"Formant frequencies: F1 = {formants[0]:.2f} Hz, F2 = {formants[1]:.2f} Hz")
+# Formant extraction (F1, F2, etc.)
+print(f"Formant frequencies: {formant_frequencies[:5]} Hz")
