@@ -26,9 +26,9 @@ classifiers = {
 }
 
 results = []
-
+lastIter = []
 for name, clf in classifiers.items():
-    for _ in range(100):
+    for i in range(100):
         X_train, X_test, y_train, y_test = train_test_split(X, y)
         start_time = time.time()
         clf.fit(X_train, y_train)
@@ -54,7 +54,18 @@ for name, clf in classifiers.items():
             "training_time": training_time,
             "testing_time": testing_time
         })
+        if i == 99:
+            lastIter.append({"X_test": X_test, "y_test": y_test, "y_pred": y_pred})
 
+X_test = lastIter[0]["X_test"]
+y_test = lastIter[0]["y_test"]
+y_pred = lastIter[0]["y_pred"]
+# plt.scatter(X_test[:, 0], X_test[:, 1], c=y_test, cmap='viridis')
+
+fpr,tpr,thresholds = roc_curve(y_test, y_pred)
+plt.plot(fpr, tpr)
+plt.plot([0, 1], [0, 1], linestyle='--')
+plt.show()
 
 df = pd.DataFrame(results)
 df_grouped = df.groupby("classifier").mean()
