@@ -60,7 +60,7 @@ for name, clf in classifiers.items():
 X_test = lastIter[0]["X_test"]
 y_test = lastIter[0]["y_test"]
 y_pred = lastIter[0]["y_pred"]
-# plt.scatter(X_test[:, 0], X_test[:, 1], c=y_test, cmap='viridis')
+
 
 fpr,tpr,thresholds = roc_curve(y_test, y_pred)
 plt.plot(fpr, tpr)
